@@ -10,41 +10,41 @@ class ContainerTest extends TestCase
 	public function testBindOnConcreteWithNoConstructor() {
 		$container = new Container();
 		$container->bind(
-			\Kraber\Test\Unit\Fixtures\BazInterface::class,
-			\Kraber\Test\Unit\Fixtures\BazClassWithoutCtor::class
+			\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class,
+			\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithoutCtor::class
 		);
 		
-		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\BazInterface::class);
-		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\BazClassWithoutCtor::class, $concrete);
+		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithoutCtor::class, $concrete);
 		$this->assertEquals("Hello world !", $concrete->returnHelloWorld());
 	}
 	
 	public function testBindOnConcreteWithConstructorNoArgs() {
 		$container = new Container();
 		$container->bind(
-			\Kraber\Test\Unit\Fixtures\BazInterface::class,
-			\Kraber\Test\Unit\Fixtures\BazClassWithCtorNoArgs::class
+			\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class,
+			\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithCtorNoArgs::class
 		);
 		
-		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\BazInterface::class);
-		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\BazClassWithCtorNoArgs::class, $concrete);
+		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithCtorNoArgs::class, $concrete);
 		$this->assertEquals("Hello world !", $concrete->returnHelloWorld());
 	}
 	
 	public function testBindOnConcreteWithConstructorNoDefaultArg() {
 		$container = new Container();
 		$container->bind(
-			\Kraber\Test\Unit\Fixtures\BazInterface::class,
-			\Kraber\Test\Unit\Fixtures\BazClassWithCtorNoDefaultArg::class
+			\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class,
+			\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithCtorNoDefaultArg::class
 		);
 		
 		$container->bind(
-			\Kraber\Test\Unit\Fixtures\HelloInterface::class,
-			\Kraber\Test\Unit\Fixtures\Hello::class
+			\Kraber\Test\Unit\Fixtures\Contracts\HelloInterface::class,
+			\Kraber\Test\Unit\Fixtures\Concretes\Hello::class
 		);
 		
-		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\BazInterface::class);
-		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\BazClassWithCtorNoDefaultArg::class, $concrete);
+		$concrete = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+		$this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazClassWithCtorNoDefaultArg::class, $concrete);
 		$this->assertEquals("Hello", $concrete->returnHelloWorld());
 	}
 }

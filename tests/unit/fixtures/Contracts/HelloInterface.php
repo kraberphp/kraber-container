@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kraber\Test\Unit\Fixtures;
+namespace Kraber\Test\Unit\Fixtures\Contracts;
 
 interface HelloInterface
 {
