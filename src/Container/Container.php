@@ -4,22 +4,35 @@ declare(strict_types=1);
 
 namespace Kraber\Container;
 
-use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
-use Psr\Container\NotFoundExceptionInterface;
+use ReflectionClass;
+use ReflectionException;
+use ReflectionParameter;
+use ReflectionType;
 
 class Container implements ContainerInterface
 {
+	private array $instances = [];
+	
+	public function bind(string $id, string $concrete) {
+		$this->instances[$id] = $concrete;
+	}
+	
 	/**
 	 * Finds an entry of the container by its identifier and returns it.
 	 *
 	 * @param string $id Identifier of the entry to look for.
 	 * @return mixed Entry.
-	 * @throws NotFoundExceptionInterface  No entry was found for **this** identifier.
-	 * @throws ContainerExceptionInterface Error while retrieving the entry.
+	 * @throws NotFoundException  No entry was found for **this** identifier.
+	 * @throws ContainerException Error while retrieving the entry.
 	 */
 	public function get(string $id) : mixed {
-	
+		if (!$this->has($id)) {
+			throw new NotFoundException("Unable to found concrete implementation for '".$id."'.");
+		}
+		
+		$concrete = $this->instances[$id];
+		return $this->resolve($concrete);
 	}
 	
 	/**
@@ -33,6 +46,70 @@ class Container implements ContainerInterface
 	 * @return bool
 	 */
 	public function has(string $id): bool {
+		return isset($this->instances[$id]);
+	}
 	
+	/**
+	 * @param $concrete
+	 * @return mixed
+	 * @throws ContainerException Error while resolving dependencies.
+	 * @throws ReflectionException If an error occurred during reflection.
+	 */
+	private function resolve($concrete) : mixed {
+		$reflectionClass = new ReflectionClass($concrete);
+		if (!$reflectionClass->isInstantiable()) {
+			throw new ContainerException("Class '".$concrete."' is not instantiable.");
+		}
+		
+		$ctor = $reflectionClass->getConstructor();
+		if ($ctor === null) {
+			return $reflectionClass->newInstance();
+		}
+		
+		$parameters = $ctor->getParameters();
+		try {
+			$dependencies = $this->resolveDependencies($parameters);
+		}
+		catch (ContainerException $e) {
+			throw new ContainerException("Unable to resolve '".$concrete."' dependencies: ".$e->getMessage());
+		}
+		
+		return $reflectionClass->newInstanceArgs($dependencies);
+	}
+	
+	/**
+	 * @param ReflectionParameter[] $reflectionParameters
+	 * @return array
+	 */
+	private function resolveDependencies(array $reflectionParameters) : array {
+		$dependencies = [];
+		foreach ($reflectionParameters as $reflectionParameter) {
+			$dependencies[] = $this->resolveParameter($reflectionParameter);
+		}
+		
+		return $dependencies;
+	}
+	
+	/**
+	 * @param ReflectionParameter $reflectionParameter
+	 * @return mixed
+	 * @throws ContainerException
+	 * @throws NotFoundException
+	 * @throws ReflectionException
+	 */
+	private function resolveParameter(ReflectionParameter $reflectionParameter) : mixed {
+		$type = $reflectionParameter->getType()?->getName();
+		
+		if ($type === null && (!$reflectionParameter->isOptional() || !$reflectionParameter->isDefaultValueAvailable())) {
+			return $reflectionParameter->getDefaultValue();
+		}
+		
+		if ($this->has($type)) {
+			return $this->get($type);
+		}
+		
+		throw new ContainerException(
+			"Parameter '".$reflectionParameter->getName()."' has no default value and is not instantiable by the container."
+		);
 	}
 }
