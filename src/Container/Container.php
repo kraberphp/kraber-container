@@ -59,7 +59,7 @@ class Container implements ContainerInterface
 	private function resolve(string $concrete) : mixed {
 		$reflectionClass = new ReflectionClass($concrete);
 		if (!$reflectionClass->isInstantiable()) {
-			throw new ContainerException("'".$concrete."' is not an instantiable class.");
+			throw new ContainerException("Class '".$concrete."' is not an instantiable.");
 		}
 		
 		$concreteCtor = $reflectionClass->getConstructor();
@@ -85,12 +85,12 @@ class Container implements ContainerInterface
 	 * @throws ReflectionException
 	 */
 	private function resolveParameters(array $reflectionParameters) : array {
-		$dependencies = [];
+		$parameters = [];
 		foreach ($reflectionParameters as $reflectionParameter) {
-			$dependencies[] = $this->resolveParameter($reflectionParameter);
+			$parameters[] = $this->resolveParameter($reflectionParameter);
 		}
 		
-		return $dependencies;
+		return $parameters;
 	}
 	
 	/**
