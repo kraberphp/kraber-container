@@ -6,9 +6,14 @@ namespace Kraber\Test\Unit\Fixtures\Concretes;
 
 use Kraber\Test\Unit\Fixtures\Contracts\BazInterface;
 
-class BazClassWithoutCtor implements BazInterface
+class BazWithCtorNoDefaultArgAllowNull implements BazInterface
 {
+	private ?string $str = "";
+	public function __construct(?string $str) {
+		$this->str = $str;
+	}
+	
 	public function returnHelloWorld() : string {
-		return "Hello world !";
+		return $this->str;
 	}
 }

@@ -9,6 +9,6 @@ use Kraber\Test\Unit\Fixtures\Contracts\WorldInterface;
 class World implements WorldInterface
 {
 	public function returnWorld() : string {
-		return "World !";
+		return "world !";
 	}
 }

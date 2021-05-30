@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kraber\Container;
 
 use Psr\Container\ContainerInterface;
-use ReflectionClass;
-use ReflectionException;
-use ReflectionParameter;
-use ReflectionType;
+use ReflectionClass,
+	ReflectionParameter,
+	ReflectionUnionType,
+	ReflectionNamedType,
+	ReflectionException,
+	Exception;
 
 class Container implements ContainerInterface
 {
@@ -31,8 +33,7 @@ class Container implements ContainerInterface
 			throw new NotFoundException("Unable to found concrete implementation for '".$id."'.");
 		}
 		
-		$concrete = $this->instances[$id];
-		return $this->resolve($concrete);
+		return $this->resolve($this->instances[$id]);
 	}
 	
 	/**
@@ -50,28 +51,27 @@ class Container implements ContainerInterface
 	}
 	
 	/**
-	 * @param $concrete
+	 * @param string $concrete
 	 * @return mixed
 	 * @throws ContainerException Error while resolving dependencies.
 	 * @throws ReflectionException If an error occurred during reflection.
 	 */
-	private function resolve($concrete) : mixed {
+	private function resolve(string $concrete) : mixed {
 		$reflectionClass = new ReflectionClass($concrete);
 		if (!$reflectionClass->isInstantiable()) {
-			throw new ContainerException("Class '".$concrete."' is not instantiable.");
+			throw new ContainerException("'".$concrete."' is not an instantiable class.");
 		}
 		
-		$ctor = $reflectionClass->getConstructor();
-		if ($ctor === null) {
+		$concreteCtor = $reflectionClass->getConstructor();
+		if ($concreteCtor === null) {
 			return $reflectionClass->newInstance();
 		}
 		
-		$parameters = $ctor->getParameters();
 		try {
-			$dependencies = $this->resolveDependencies($parameters);
+			$dependencies = $this->resolveParameters($concreteCtor->getParameters());
 		}
 		catch (ContainerException $e) {
-			throw new ContainerException("Unable to resolve '".$concrete."' dependencies: ".$e->getMessage());
+			throw new ContainerException("Class '".$concrete."' unable to resolve dependency: ".$e->getMessage());
 		}
 		
 		return $reflectionClass->newInstanceArgs($dependencies);
@@ -80,8 +80,11 @@ class Container implements ContainerInterface
 	/**
 	 * @param ReflectionParameter[] $reflectionParameters
 	 * @return array
+	 * @throws ContainerException
+	 * @throws NotFoundException
+	 * @throws ReflectionException
 	 */
-	private function resolveDependencies(array $reflectionParameters) : array {
+	private function resolveParameters(array $reflectionParameters) : array {
 		$dependencies = [];
 		foreach ($reflectionParameters as $reflectionParameter) {
 			$dependencies[] = $this->resolveParameter($reflectionParameter);
@@ -98,14 +101,36 @@ class Container implements ContainerInterface
 	 * @throws ReflectionException
 	 */
 	private function resolveParameter(ReflectionParameter $reflectionParameter) : mixed {
-		$type = $reflectionParameter->getType()?->getName();
+		$reflectionParameterType = $reflectionParameter->getType();
 		
-		if ($type === null && (!$reflectionParameter->isOptional() || !$reflectionParameter->isDefaultValueAvailable())) {
+		if ($reflectionParameterType instanceof ReflectionUnionType) {
+			foreach ($reflectionParameterType->getTypes() as $reflectionNamedType) {
+				try {
+					return $this->resolveParameterTypeHint($reflectionParameter, $reflectionNamedType);
+				}
+				catch (Exception) {
+				}
+			}
+		}
+		elseif ($reflectionParameterType instanceof ReflectionNamedType) {
+			return $this->resolveParameterTypeHint($reflectionParameter, $reflectionParameterType);
+		}
+		
+		throw new ContainerException("Parameter '".$reflectionParameter->getName()."' has no type hint available.");
+	}
+	
+	private function resolveParameterTypeHint(ReflectionParameter $reflectionParameter, ReflectionNamedType $reflectionParameterType) : mixed {
+		$id = $reflectionParameterType->getName();
+		if ($this->has($id)) {
+			return $this->get($id);
+		}
+		
+		if ($reflectionParameter->isDefaultValueAvailable()) {
 			return $reflectionParameter->getDefaultValue();
 		}
 		
-		if ($this->has($type)) {
-			return $this->get($type);
+		if ($reflectionParameter->allowsNull()) {
+			return null;
 		}
 		
 		throw new ContainerException(
