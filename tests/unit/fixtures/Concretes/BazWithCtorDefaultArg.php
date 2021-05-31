@@ -8,12 +8,14 @@ use Kraber\Test\Unit\Fixtures\Contracts\BazInterface;
 
 class BazWithCtorDefaultArg implements BazInterface
 {
-	private string $str = "";
-	public function __construct($str = "Hello world !") {
-		$this->str = $str;
-	}
-	
-	public function returnHelloWorld() : string {
-		return $this->str;
-	}
+    private string $str = "";
+    public function __construct($str = "Hello world !")
+    {
+        $this->str = $str;
+    }
+    
+    public function returnHelloWorld(): string
+    {
+        return $this->str;
+    }
 }

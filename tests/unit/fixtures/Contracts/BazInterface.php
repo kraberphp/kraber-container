@@ -6,5 +6,5 @@ namespace Kraber\Test\Unit\Fixtures\Contracts;
 
 interface BazInterface
 {
-	public function returnHelloWorld() : string;
+    public function returnHelloWorld(): string;
 }

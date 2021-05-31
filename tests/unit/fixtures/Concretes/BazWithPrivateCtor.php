@@ -8,10 +8,12 @@ use Kraber\Test\Unit\Fixtures\Contracts\BazInterface;
 
 class BazWithPrivateCtor implements BazInterface
 {
-	private function __construct() {
-	}
-	
-	public function returnHelloWorld() : string {
-		return "Hello world !";
-	}
+    private function __construct()
+    {
+    }
+    
+    public function returnHelloWorld(): string
+    {
+        return "Hello world !";
+    }
 }

@@ -6,5 +6,5 @@ namespace Kraber\Test\Unit\Fixtures\Contracts;
 
 interface WorldInterface
 {
-	public function returnWorld() : string;
+    public function returnWorld(): string;
 }

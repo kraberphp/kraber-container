@@ -6,5 +6,5 @@ namespace Kraber\Test\Unit\Fixtures\Contracts;
 
 interface BufferInterface
 {
-	public function get() : mixed;
+    public function get(): mixed;
 }

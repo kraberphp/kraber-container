@@ -8,7 +8,8 @@ use Kraber\Test\Unit\Fixtures\Contracts\BazInterface;
 
 class BazWithoutCtor implements BazInterface
 {
-	public function returnHelloWorld() : string {
-		return "Hello world !";
-	}
+    public function returnHelloWorld(): string
+    {
+        return "Hello world !";
+    }
 }

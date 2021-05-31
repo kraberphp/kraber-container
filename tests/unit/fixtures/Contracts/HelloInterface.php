@@ -6,5 +6,5 @@ namespace Kraber\Test\Unit\Fixtures\Contracts;
 
 interface HelloInterface
 {
-	public function returnHello() : string;
+    public function returnHello(): string;
 }
