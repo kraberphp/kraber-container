@@ -5,24 +5,36 @@ declare(strict_types=1);
 namespace Kraber\Container;
 
 use Psr\Container\ContainerInterface;
+use Exception;
 use ReflectionClass;
 use ReflectionParameter;
 use ReflectionUnionType;
 use ReflectionNamedType;
 use ReflectionException;
-use Exception;
+use WeakReference;
 
 class Container implements ContainerInterface
 {
-    /** @var array<class-string, class-string> */
+    /**
+     * @var array<class-string<object>, ContainerEntry<object>>
+     */
     private array $interfaces = [];
 
     /**
-     * @param class-string $interface
-     * @param class-string $class
+     * @var array<class-string<object>, WeakReference<object>>
+     */
+    private array $instances = [];
+
+    /**
+     * @template I of object
+     * @template C of object
+     * @param class-string<I> $interface
+     * @param class-string<C> $class
+     * @param bool $shared
+     * @return ContainerEntry<C>
      * @throws ContainerException If provided interface is invalid or class does not implement interface.
      */
-    public function bind(string $interface, string $class): void
+    public function bind(string $interface, string $class, bool $shared = false): ContainerEntry
     {
         if (!(interface_exists($interface) && is_subclass_of($class, $interface))) {
             throw new ContainerException(
@@ -31,17 +43,18 @@ class Container implements ContainerInterface
             );
         }
 
-        $this->interfaces[$interface] = $class;
+        $this->interfaces[$interface] = new ContainerEntry($class, $shared);
+        return $this->interfaces[$interface];
     }
 
     /**
      * Finds an entry of the container by its identifier and returns it.
      *
-     * @template T of object
+     * @template I of object
      *
-     * @param class-string<T> $id Identifier of the entry to look for.
+     * @param class-string<I> $id Identifier of the entry to look for.
      *
-     * @return T Entry.
+     * @return I Entry.
      * @throws NotFoundException  No entry was found for **this** identifier.
      * @throws ContainerException Error while retrieving the entry.
      * @throws ReflectionException
@@ -52,8 +65,21 @@ class Container implements ContainerInterface
             throw new NotFoundException("Unable to found concrete implementation for '" . $id . "'.");
         }
 
-        /** @var T */
-        return $this->resolve($this->interfaces[$id]);
+        $instance = null;
+        $containerEntry = $this->interfaces[$id];
+        if ($containerEntry->isShared() && isset($this->instances[$id])) {
+            $instance = $this->instances[$id]->get();
+        }
+
+        if ($instance === null) {
+            $instance = $this->resolve($containerEntry->getIdentifier());
+            if ($containerEntry->isShared()) {
+                $this->instances[$id] = WeakReference::create($instance);
+            }
+        }
+
+        /** @var I */
+        return $instance;
     }
 
     /**
@@ -63,7 +89,8 @@ class Container implements ContainerInterface
      * `has($id)` returning true does not mean that `get($id)` will not throw an exception.
      * It does however mean that `get($id)` will not throw a `NotFoundExceptionInterface`.
      *
-     * @param class-string $id Identifier of the entry to look for.
+     * @template I of object
+     * @param class-string<I> $id Identifier of the entry to look for.
      * @return bool
      */
     public function has(string $id): bool
@@ -72,11 +99,11 @@ class Container implements ContainerInterface
     }
 
     /**
-     * @template T of object
+     * @template C of object
      *
-     * @param class-string<T> $concrete
+     * @param class-string<C> $concrete
      *
-     * @return T
+     * @return C
      * @throws ContainerException Error while resolving dependencies.
      * @throws ReflectionException If an error occurred during reflection.
      * @throws NotFoundException
@@ -90,7 +117,7 @@ class Container implements ContainerInterface
 
         $concreteCtor = $reflectionClass->getConstructor();
         if ($concreteCtor === null) {
-            /** @var T */
+            /** @var C */
             return $reflectionClass->newInstance();
         }
 
@@ -100,7 +127,7 @@ class Container implements ContainerInterface
             throw new ContainerException("Class '" . $concrete . "' unable to resolve dependency: " . $e->getMessage());
         }
 
-        /** @var T */
+        /** @var C */
         return $reflectionClass->newInstanceArgs($dependencies);
     }
 

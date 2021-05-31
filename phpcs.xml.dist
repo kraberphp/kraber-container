@@ -31,7 +31,7 @@
     <rule ref="Generic.Files.EndFileNewline" />
     <rule ref="Generic.Files.InlineHTML" />
     <rule ref="Generic.Files.LineEndings" />
-    <rule ref="Generic.Files.LineLength" /> <!-- custom -->
+    <rule ref="Generic.Files.LineLength" />
     <rule ref="Generic.Files.OneObjectStructurePerFile" />
     <rule ref="Generic.Formatting.SpaceAfterCast" />
     <rule ref="Generic.Functions.FunctionCallArgumentSpacing" />

@@ -31,6 +31,24 @@ class ContainerTest extends TestCase
         $this->assertEquals("Hello world !", $concrete->returnHelloWorld());
     }
 
+    public function testBindOnClassWithNoConstructorAndSharedEnabledReturnsSameInstance()
+    {
+        $container = new Container();
+        $container->bind(
+            \Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class,
+            \Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class,
+            true
+        );
+
+        $concrete1 = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+        $concrete2 = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete1);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete2);
+        $this->assertEquals("Hello world !", $concrete1->returnHelloWorld());
+        $this->assertEquals("Hello world !", $concrete2->returnHelloWorld());
+        $this->assertSame($concrete2, $concrete1);
+    }
+
     public function testBindOnClassWithCtorNoArgs()
     {
         $container = new Container();
