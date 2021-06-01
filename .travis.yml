@@ -17,7 +17,8 @@ install:
   - composer require scrutinizer/ocular --no-interaction
 
 script:
+  - mkdir -p ./build/logs
   - composer ci
 
 after_script:
-  - ./vendor/bin/ocular code-coverage:upload --format=php-clover build/logs/clover.xml
+  - ./vendor/bin/ocular code-coverage:upload --format=php-clover ./build/logs/clover.xml

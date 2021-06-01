@@ -33,7 +33,7 @@
         "phpstan": "phpstan --no-progress",
         "phpstan-baseline": "@phpstan --generate-baseline",
         "test": "phpunit",
-        "test-coverage": "@test --coverage-html=build/coverage --coverage-clover=build/logs/clover.xml",
+        "test-coverage": "@test --coverage-html=./build/coverage --coverage-clover=./build/logs/clover.xml",
         "ci": [
             "@cs",
             "@phpstan",

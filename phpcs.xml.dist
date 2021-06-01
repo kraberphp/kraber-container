@@ -5,9 +5,9 @@
     <file>./tests</file>
 
     <arg name="extensions" value="php" />
-    <arg name="report-full" value="build/logs/cs-full.txt" />
-    <arg name="report-summary" value="build/logs/cs-summary.txt" />
-    <arg name="report-source" value="build/logs/cs-source.txt" />
+    <arg name="report-full" value="./build/logs/cs-full.txt" />
+    <arg name="report-summary" value="./build/logs/cs-summary.txt" />
+    <arg name="report-source" value="./build/logs/cs-source.txt" />
     <arg name="colors" />
     <arg name="tab-width" value="4" />
     <arg value="sp" />
