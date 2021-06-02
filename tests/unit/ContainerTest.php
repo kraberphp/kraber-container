@@ -31,6 +31,16 @@ class ContainerTest extends TestCase
         $this->assertEquals("Hello world !", $concrete->returnHelloWorld());
     }
 
+    public function testAddOnClassWithNoConstructor()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete);
+        $this->assertEquals("Hello world !", $concrete->returnHelloWorld());
+    }
+
     public function testBindOnClassWithNoConstructorAndSharedEnabledReturnsSameInstance()
     {
         $container = new Container();
@@ -49,6 +59,20 @@ class ContainerTest extends TestCase
         $this->assertSame($concrete2, $concrete1);
     }
 
+    public function testAddOnClassWithNoConstructorAndSharedEnabledReturnsSameInstance()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, true);
+
+        $concrete1 = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+        $concrete2 = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete1);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete2);
+        $this->assertEquals("Hello world !", $concrete1->returnHelloWorld());
+        $this->assertEquals("Hello world !", $concrete2->returnHelloWorld());
+        $this->assertSame($concrete2, $concrete1);
+    }
+
     public function testBindOnClassWithCtorNoArgs()
     {
         $container = new Container();
@@ -58,6 +82,16 @@ class ContainerTest extends TestCase
         );
 
         $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorNoArgs::class, $concrete);
+        $this->assertEquals("Hello world !", $concrete->returnHelloWorld());
+    }
+
+    public function testAddOnClassWithCtorNoArgs()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorNoArgs::class);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorNoArgs::class);
         $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorNoArgs::class, $concrete);
         $this->assertEquals("Hello world !", $concrete->returnHelloWorld());
     }

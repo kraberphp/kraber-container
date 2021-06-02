@@ -18,7 +18,7 @@ class Container implements ContainerInterface
     /**
      * @var array<class-string<object>, ContainerEntry<object>>
      */
-    private array $interfaces = [];
+    private array $register = [];
 
     /**
      * @var array<class-string<object>, WeakReference<object>>
@@ -26,25 +26,44 @@ class Container implements ContainerInterface
     private array $instances = [];
 
     /**
+     * @template C of object
+     * @param class-string<C> $class
+     * @param bool $shared
+     * @param bool $autoload
+     * @return ContainerEntry<C>
+     * @throws ContainerException If provided class is not defined.
+     */
+    public function add(string $class, bool $shared = false, bool $autoload = true): ContainerEntry
+    {
+        if (!class_exists($class, $autoload)) {
+            throw new ContainerException("Class '" . $class . "' is not defined.");
+        }
+
+        $this->register[$class] = new ContainerEntry($class, $shared);
+        return $this->register[$class];
+    }
+
+    /**
      * @template I of object
      * @template C of object
      * @param class-string<I> $interface
      * @param class-string<C> $class
      * @param bool $shared
+     * @param bool $autoload
      * @return ContainerEntry<C>
      * @throws ContainerException If provided interface is invalid or class does not implement interface.
      */
-    public function bind(string $interface, string $class, bool $shared = false): ContainerEntry
+    public function bind(string $interface, string $class, bool $shared = false, bool $autoload = true): ContainerEntry
     {
-        if (!(interface_exists($interface) && is_subclass_of($class, $interface))) {
+        if (!(interface_exists($interface, $autoload) && is_subclass_of($class, $interface))) {
             throw new ContainerException(
                 "Could not bind interface '" . $interface . "' to concrete class '" . $class . "'." .
                 "Please make sure interface exists and class implements it."
             );
         }
 
-        $this->interfaces[$interface] = new ContainerEntry($class, $shared);
-        return $this->interfaces[$interface];
+        $this->register[$interface] = new ContainerEntry($class, $shared);
+        return $this->register[$interface];
     }
 
     /**
@@ -66,7 +85,7 @@ class Container implements ContainerInterface
         }
 
         $instance = null;
-        $containerEntry = $this->interfaces[$id];
+        $containerEntry = $this->register[$id];
         if ($containerEntry->isShared() && isset($this->instances[$id])) {
             $instance = $this->instances[$id]->get();
         }
@@ -95,7 +114,7 @@ class Container implements ContainerInterface
      */
     public function has(string $id): bool
     {
-        return isset($this->interfaces[$id]);
+        return isset($this->register[$id]);
     }
 
     /**
