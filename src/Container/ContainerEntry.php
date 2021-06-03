@@ -17,7 +17,7 @@ class ContainerEntry
     /** @var bool */
     private bool $shared = false;
 
-    /** @var mixed[] */
+    /** @var array<string|class-string, mixed> */
     private array $arguments = [];
 
     /** @var array<string, mixed[]> */
@@ -66,26 +66,42 @@ class ContainerEntry
     }
 
     /**
-     * @param mixed $arg
-     *
+     * @param string $parameter
+     * @param mixed $value
      * @return $this
      */
-    public function addArgument(mixed $arg): self
+    public function addArgument(string $parameter, mixed $value): self
     {
-        $this->arguments[] = $arg;
+        $this->arguments[$parameter] = $value;
 
         return $this;
     }
 
     /**
-     * @param mixed[] $args
-     *
+     * @param array<string|class-string, mixed> $arguments
      * @return $this
      */
-    public function addArguments(mixed ...$args): self
+    public function addArguments(array $arguments): self
     {
-        $this->arguments = array_merge($this->arguments, array_values($args));
+        $parameters = array_keys($arguments);
+        foreach ($parameters as $parameter) {
+            if (!is_string($parameter)) {
+                throw new ContainerException(
+                    "Invalid parameter name provided (" . $parameter . "). Parameter must be a string."
+                );
+            }
+        }
+
+        $this->arguments = array_merge($this->arguments, array_combine($parameters, array_values($arguments)));
 
         return $this;
+    }
+
+    /**
+     * @return array<string|class-string, mixed>
+     */
+    public function getArguments(): array
+    {
+        return $this->arguments;
     }
 }

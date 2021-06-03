@@ -73,6 +73,20 @@ class ContainerTest extends TestCase
         $this->assertSame($concrete2, $concrete1);
     }
 
+    public function testSetSharedReturnsSameInstance()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class)->setShared();
+
+        $concrete1 = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+        $concrete2 = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete1);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithoutCtor::class, $concrete2);
+        $this->assertEquals("Hello world !", $concrete1->returnHelloWorld());
+        $this->assertEquals("Hello world !", $concrete2->returnHelloWorld());
+        $this->assertSame($concrete2, $concrete1);
+    }
+
     public function testBindOnClassWithCtorNoArgs()
     {
         $container = new Container();
@@ -187,6 +201,50 @@ class ContainerTest extends TestCase
         $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
         $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class, $concrete);
         $this->assertEquals("Hello", $concrete->returnHelloWorld());
+    }
+
+    public function testAddArgumentAndBindWithCtorUsingUnionTypeHint()
+    {
+        $container = new Container();
+        $container->bind(
+            \Kraber\Test\Unit\Fixtures\Contracts\HelloInterface::class,
+            \Kraber\Test\Unit\Fixtures\Concretes\Hello::class
+        );
+
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class)
+            ->addArgument(
+                \Kraber\Test\Unit\Fixtures\Contracts\HelloInterface::class,
+                \Kraber\Test\Unit\Fixtures\Contracts\HelloInterface::class
+            );
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class, $concrete);
+        $this->assertEquals("Hello", $concrete->returnHelloWorld());
+    }
+
+    public function testBindOnClassWithCtorUsingUnionTypeHintThrowsExceptionIfUnresolvable()
+    {
+        $container = new Container();
+        $container->bind(
+            \Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class,
+            \Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class
+        );
+
+        $this->expectException(ContainerException::class);
+        $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+    }
+
+    public function testAddClassWithCtorUsingUnionTypeHintThrowsExceptionIfUnresolvable()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class)
+            ->addArgument(
+                \Kraber\Test\Unit\Fixtures\Contracts\HelloInterface::class,
+                \Kraber\Test\Unit\Fixtures\Concretes\Hello::class
+            );
+
+        $this->expectException(ContainerException::class);
+        $container->get(\Kraber\Test\Unit\Fixtures\Concretes\BazWithCtorUnionTypeHint::class);
     }
 
     public function testBindOnClassWithCtorUsingUnionTypeHintInOrder()
@@ -323,5 +381,107 @@ class ContainerTest extends TestCase
 
         $this->expectException(ContainerException::class);
         $container->get(\Kraber\Test\Unit\Fixtures\Contracts\BazInterface::class);
+    }
+
+    public function testAddOnClassWithAddArgument()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Point::class)
+            ->addArgument('$x', 42.5)
+            ->addArgument('$y', 32.68)
+            ->addArgument('$z', 128.88);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\Point::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\Point::class, $concrete);
+        $this->assertSame(42.5, $this->getPropertyValue($concrete, 'x'));
+        $this->assertSame(32.68, $this->getPropertyValue($concrete, 'y'));
+        $this->assertSame(128.88, $this->getPropertyValue($concrete, 'z'));
+    }
+
+    public function testAddOnClassWithAddArguments()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Point::class)
+            ->addArguments([
+                '$x' => 42.5,
+                '$y' => 32.68,
+                '$z' => 128.88
+            ]);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\Point::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\Point::class, $concrete);
+        $this->assertSame(42.5, $this->getPropertyValue($concrete, 'x'));
+        $this->assertSame(32.68, $this->getPropertyValue($concrete, 'y'));
+        $this->assertSame(128.88, $this->getPropertyValue($concrete, 'z'));
+    }
+
+    public function testAddOnClassWithMultipleAddArgumentsCalls()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Point::class)
+            ->addArguments([
+                '$x' => 42.5,
+                '$y' => 32.68
+            ])
+            ->addArguments(['$z' => 128.88]);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\Point::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\Point::class, $concrete);
+        $this->assertSame(42.5, $this->getPropertyValue($concrete, 'x'));
+        $this->assertSame(32.68, $this->getPropertyValue($concrete, 'y'));
+        $this->assertSame(128.88, $this->getPropertyValue($concrete, 'z'));
+    }
+
+    public function testAddOnClassWithMultipleAddArgumentsAndOneAddArgumentCall()
+    {
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Point::class)
+            ->addArguments([
+                '$x' => 42.5,
+                '$y' => 32.68
+            ])
+            ->addArgument('$z', 128.88);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\Point::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\Point::class, $concrete);
+        $this->assertSame(42.5, $this->getPropertyValue($concrete, 'x'));
+        $this->assertSame(32.68, $this->getPropertyValue($concrete, 'y'));
+        $this->assertSame(128.88, $this->getPropertyValue($concrete, 'z'));
+    }
+
+    public function testAddArgumentWithVariadicClassCtor()
+    {
+        $args = [
+            new \Kraber\Test\Unit\Fixtures\Concretes\Point(2, 8, 64),
+            new \Kraber\Test\Unit\Fixtures\Concretes\Point(4, 16, 128),
+            new \Kraber\Test\Unit\Fixtures\Concretes\Point(8, 32, 256),
+        ];
+
+        $container = new Container();
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Path::class)
+            ->addArguments(['$points' => $args]);
+
+        $concrete = $container->get(\Kraber\Test\Unit\Fixtures\Concretes\Path::class);
+        $this->assertInstanceOf(\Kraber\Test\Unit\Fixtures\Concretes\Path::class, $concrete);
+        $this->assertEquals($args, $this->getPropertyValue($concrete, 'points'));
+    }
+
+    public function testAddUndefinedClassThrowsException()
+    {
+        $container = new Container();
+        $this->expectException(ContainerException::class);
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\UndefinedPoint::class);
+    }
+
+    public function testAddArgumentsWithInvalidKeyThrowsException()
+    {
+        $container = new Container();
+        $this->expectException(ContainerException::class);
+        $container->add(\Kraber\Test\Unit\Fixtures\Concretes\Point::class)
+            ->addArguments([
+                42 => 42.5,
+                '$y' => 32.68,
+                '$z', 128.88
+            ]);
     }
 }

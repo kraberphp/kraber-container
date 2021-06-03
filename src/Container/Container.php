@@ -7,6 +7,7 @@ namespace Kraber\Container;
 use Psr\Container\ContainerInterface;
 use Exception;
 use ReflectionClass;
+use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionUnionType;
 use ReflectionNamedType;
@@ -70,10 +71,11 @@ class Container implements ContainerInterface
      * Finds an entry of the container by its identifier and returns it.
      *
      * @template I of object
+     * @template C of object
      *
      * @param class-string<I> $id Identifier of the entry to look for.
      *
-     * @return I Entry.
+     * @return C
      * @throws NotFoundException  No entry was found for **this** identifier.
      * @throws ContainerException Error while retrieving the entry.
      * @throws ReflectionException
@@ -91,13 +93,13 @@ class Container implements ContainerInterface
         }
 
         if ($instance === null) {
-            $instance = $this->resolve($containerEntry->getIdentifier());
+            $instance = $this->resolve($containerEntry->getIdentifier(), $containerEntry->getArguments());
             if ($containerEntry->isShared()) {
                 $this->instances[$id] = WeakReference::create($instance);
             }
         }
 
-        /** @var I */
+        /** @var C */
         return $instance;
     }
 
@@ -121,47 +123,75 @@ class Container implements ContainerInterface
      * @template C of object
      *
      * @param class-string<C> $concrete
+     * @param array<string|class-string, mixed> $arguments
      *
      * @return C
      * @throws ContainerException Error while resolving dependencies.
      * @throws ReflectionException If an error occurred during reflection.
      * @throws NotFoundException
      */
-    private function resolve(string $concrete): object
+    private function resolve(string $concrete, mixed $arguments = []): object
     {
         $reflectionClass = new ReflectionClass($concrete);
         if (!$reflectionClass->isInstantiable()) {
-            throw new ContainerException("Class '" . $concrete . "' is not an instantiable.");
+            throw new ContainerException("Class '" . $concrete . "' is not instantiable.");
         }
 
-        $concreteCtor = $reflectionClass->getConstructor();
-        if ($concreteCtor === null) {
-            /** @var C */
+        $reflectionClassCtor = $reflectionClass->getConstructor();
+        if ($reflectionClassCtor === null) {
             return $reflectionClass->newInstance();
         }
 
+        return $this->resolveWithConstructor($reflectionClass, $reflectionClassCtor, $arguments);
+    }
+
+    /**
+     * @template C of object
+     *
+     * @param ReflectionClass<C> $reflectionClass
+     * @param ReflectionMethod $reflectionClassCtor
+     * @param array<string|class-string, mixed> $arguments
+     *
+     * @return C
+     * @throws ContainerException Error while resolving dependencies.
+     * @throws ReflectionException If an error occurred during reflection.
+     * @throws NotFoundException
+     */
+    private function resolveWithConstructor(
+        ReflectionClass $reflectionClass,
+        ReflectionMethod $reflectionClassCtor,
+        array $arguments = []
+    ): object {
         try {
-            $dependencies = $this->resolveParameters($concreteCtor->getParameters());
+            $dependencies = $this->resolveParameters($reflectionClassCtor->getParameters(), $arguments);
         } catch (ContainerException $e) {
-            throw new ContainerException("Class '" . $concrete . "' unable to resolve dependency: " . $e->getMessage());
+            throw new ContainerException(
+                "Class '" . $reflectionClass->getName() . "' unable to resolve dependency. " . $e->getMessage()
+            );
         }
 
-        /** @var C */
         return $reflectionClass->newInstanceArgs($dependencies);
     }
 
     /**
      * @param ReflectionParameter[] $reflectionParameters
+     * @param array<string|class-string, mixed> $arguments
+     *
      * @return mixed[]
      * @throws ContainerException
      * @throws NotFoundException
      * @throws ReflectionException
      */
-    private function resolveParameters(array $reflectionParameters): array
+    private function resolveParameters(array $reflectionParameters, array $arguments = []): array
     {
         $parameters = [];
         foreach ($reflectionParameters as $reflectionParameter) {
-            $parameters[] = $this->resolveParameter($reflectionParameter);
+            $parameter = $this->resolveParameter($reflectionParameter, $arguments);
+            if ($reflectionParameter->isVariadic()) {
+                $parameters = $parameters + [...$parameter];
+            } else {
+                $parameters[] = $parameter;
+            }
         }
 
         return $parameters;
@@ -169,32 +199,60 @@ class Container implements ContainerInterface
 
     /**
      * @param ReflectionParameter $reflectionParameter
+     * @param array<string|class-string, mixed> $arguments
+     *
      * @return mixed
      * @throws ContainerException
      * @throws NotFoundException
      * @throws ReflectionException
      */
-    private function resolveParameter(ReflectionParameter $reflectionParameter): mixed
+    private function resolveParameter(ReflectionParameter $reflectionParameter, array $arguments = []): mixed
     {
-        $reflectionParameterType = $reflectionParameter->getType();
-
-        if ($reflectionParameterType instanceof ReflectionUnionType) {
-            foreach ($reflectionParameterType->getTypes() as $reflectionNamedType) {
-                try {
-                    return $this->resolveParameterTypeHint($reflectionParameter, $reflectionNamedType);
-                } catch (Exception) {
-                }
-            }
-        } elseif ($reflectionParameterType instanceof ReflectionNamedType) {
-            return $this->resolveParameterTypeHint($reflectionParameter, $reflectionParameterType);
+        $argName = '$' . $reflectionParameter->getName();
+        if (isset($arguments[$argName])) {
+            return $arguments[$argName];
         }
 
-        throw new ContainerException("Parameter '" . $reflectionParameter->getName() . "' has no type hint available.");
+        $reflectionParameterType = $reflectionParameter->getType();
+        if ($reflectionParameterType instanceof ReflectionUnionType) {
+            return $this->resolveParameterUnionTypeHint($reflectionParameter, $reflectionParameterType, $arguments);
+        } elseif ($reflectionParameterType instanceof ReflectionNamedType) {
+            return $this->resolveParameterTypeHint($reflectionParameter, $reflectionParameterType, $arguments);
+        }
+
+        throw new ContainerException(
+            "Unable to resolve parameter '" . $reflectionParameter->getName() . "', not type hint provided."
+        );
     }
 
     /**
      * @param ReflectionParameter $reflectionParameter
+     * @param ReflectionUnionType $reflectionParameterUnionType
+     * @param array<string|class-string, mixed> $arguments
+     *
+     * @return mixed
+     * @throws ContainerException
+     */
+    private function resolveParameterUnionTypeHint(
+        ReflectionParameter $reflectionParameter,
+        ReflectionUnionType $reflectionParameterUnionType,
+        array $arguments = []
+    ): mixed {
+        foreach ($reflectionParameterUnionType->getTypes() as $reflectionNamedType) {
+            try {
+                return $this->resolveParameterTypeHint($reflectionParameter, $reflectionNamedType, $arguments);
+            } catch (Exception) {
+            }
+        }
+
+        throw new ContainerException("Unable to resolve parameter '" . $reflectionParameter->getName() . "'.");
+    }
+
+
+    /**
+     * @param ReflectionParameter $reflectionParameter
      * @param ReflectionNamedType $reflectionParameterType
+     * @param array<string|class-string, mixed> $arguments
      *
      * @return mixed
      * @throws ContainerException
@@ -203,12 +261,25 @@ class Container implements ContainerInterface
      */
     private function resolveParameterTypeHint(
         ReflectionParameter $reflectionParameter,
-        ReflectionNamedType $reflectionParameterType
+        ReflectionNamedType $reflectionParameterType,
+        array $arguments = []
     ): mixed {
-        /** @var class-string */
         $id = $reflectionParameterType->getName();
-        if ($this->has($id)) {
-            return $this->get($id);
+        if (!$reflectionParameterType->isBuiltin() && (class_exists($id, false) || interface_exists($id, false))) {
+            $class = $arguments[$id] ?? null;
+            if ($class !== null && (class_exists($class, false) || interface_exists($class, false))) {
+                if ($this->has($class)) {
+                    return $this->get($class);
+                } else {
+                    throw new ContainerException(
+                        "Could to resolve parameter '" . $reflectionParameter->getName() . "' using '" . $class . "'."
+                    );
+                }
+            }
+
+            if ($this->has($id)) {
+                return $this->get($id);
+            }
         }
 
         if ($reflectionParameter->isDefaultValueAvailable()) {
@@ -219,9 +290,6 @@ class Container implements ContainerInterface
             return null;
         }
 
-        throw new ContainerException(
-            "Unable to instantiate parameter '" . $reflectionParameter->getName() . "'. " .
-            "It should has a default value (or nullable) and is not instantiable by the container."
-        );
+        throw new ContainerException("Could to resolve parameter '" . $reflectionParameter->getName() . "'.");
     }
 }
